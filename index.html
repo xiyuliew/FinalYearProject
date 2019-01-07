@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Final Year Project</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+	<script src="/socket.io/socket.io.js"></script>
+	<script>
+	  var socket = io();
+	</script>
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 600px;
+	    width: 50%;
+	}
+      /* Optional: Makes the sample page fill the window. */
+      html, body {
+        height: 100%;
+		width: 100%;
+    }
+	  canvas{
+		max-height: 100%;
+		max-width: 100%;
+	}
+
+
+	* {
+		box-sizing: border-box;
+	}
+
+
+	/* Style the header */
+	.header {
+		background-color: #f1f1f1;
+		padding: 20px;
+		text-align: center;
+	}
+
+	/* Style the top navigation bar */
+	.topnav {
+		overflow: hidden;
+		background-color: #333;
+	}
+
+	/* Style the topnav links */
+	.topnav a {
+		float: left;
+		display: block;
+		color: #f2f2f2;
+		text-align: center;
+		padding: 14px 16px;
+		text-decoration: none;
+	}
+
+	/* Change color on hover */
+	.topnav a:hover {
+		background-color: #ddd;
+		color: black;
+	}
+	
+	/* For google map and box fix side by side*/
+	.column {
+		float: left;
+		width: 50%;
+		padding: 150px;
+	}
+		
+	.row {
+		display: flex;
+	}
+
+	.column1 {
+		flex: 70%;
+	}
+	
+	.column1 {
+		flex: 30%;
+	}
+	
+	/* Style the box */
+	#box{
+		background-color: lightblue;
+		height: 550px;
+		width: 400px;
+		border-style: solid;
+		padding: 25px;
+		margin: 25px;
+		text-align: center;
+	}
+	
+	/* display surface area and 'm^2' in a line */
+	.m2{
+		display: inline-block;
+	}
+	
+	/* display surface area and 'km^2' in a line */
+	.km2{
+		display: inline-block;
+	}
+	
+    </style>
+  </head>
+  <body>
+	<div class = "header" >
+		<h1 id ="header">Road Area Calculator</h1>
+	</div>
+	
+	<div class="topnav">
+	  <a href="/">Home</a>
+	  <a href="/about">About</a>
+	</div>
+	<br/>
+	<div class = "row">
+		<div id="map" class = "column1"></div>
+		<div class = "column2" id = "box"> 
+			<h2> Calculate Surface Area </h2>
+			<p >Total surface area: </p>
+			<div class = "m2"> 
+				<div id = "displaym2"> </div> 
+			</div>
+			<div class = "m2">
+				<div>m<sup>2</sup></div> 
+			</div>
+			<br/>
+			<div class = "km2"> 
+				<div id = "displaykm2"> </div> 
+			</div>
+			<div class = "km2">
+				<div>km<sup>2</sup></div> 
+			</div>
+			<br/>
+			<br/>
+			<button id="button1" onClick="calculate()"> Calculate </button>
+		</div>
+	</div>
+    <script>
+      // Initialize Google Map on the client page 
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: -37.910523800, lng: 145.136218200},
+          zoom: 15,
+        });
+		
+		// Get drawing manager library from Google Map Services 
+        var drawingManager = new google.maps.drawing.DrawingManager({
+			drawingMode: google.maps.drawing.OverlayType.RECTANGLE,
+			drawingControl: true,
+			drawingControlOptions: {
+			  position: google.maps.ControlPosition.TOP_CENTER,
+			  drawingModes: ['rectangle']
+			},
+			rectangleOptions:{
+				fillColor: '#ffffff',
+				clickable: true,
+			}
+			
+			
+		});
+		drawingManager.setMap(map);
+		
+		//Process this event when the user done drawing rectangle in Google Map
+		google.maps.event.addListener(drawingManager, "rectanglecomplete", function(rectangle){
+			/* This calculates distance in pixels from coordinates,
+				Then it generate a static map and send it to the server;
+			*/
+			var bounds = rectangle.getBounds();
+			var ne = bounds.getNorthEast();
+			var sw = bounds.getSouthWest();
+			var nePx = map.getProjection().fromLatLngToPoint(ne);
+			var swPx = map.getProjection().fromLatLngToPoint(sw);
+			var width = Math.abs((nePx.x - swPx.x) * Math.pow(2, map.getZoom()));
+			var height = Math.abs(((nePx.y - swPx.y) * Math.pow(2, map.getZoom())))+50;
+			var centre = rectangle.getBounds().getCenter();
+			var zoom = map.zoom;
+			var imgUrl ="https://maps.googleapis.com/maps/api/staticmap?center=" + 
+				centre.lat() + "," + centre.lng() + "&zoom=" + zoom + 
+				"&size=" + width + "x" + height + 
+				"&maptype=roadmap&format=png" +
+				"&style=feature:all|element:geometry.stroke|visibility:off" + 
+				"&style=feature:poi|visibility:off" +
+				"&style=feature:landscape.man_made|visibility:off" +
+				"&style=feature:all|element:labels.text|visibility:off" +
+				"&style=feature:water|visibility:off" +
+				"&style=feature:road|color:0x000000" +
+				"&key=AIzaSyAVBoSDGSH1oco92WWos46QvzxcwKhvFvI";
+			console.log(imgUrl);
+			console.log(height);
+			console.log(width);
+			sendURL(imgUrl,centre.lat(),zoom);
+		 });	 
+    }
+	
+	//Send generated URL to server side with socket-io
+	function sendURL(imgUrl,latitude,zoom){
+		socket.emit('getImage',{url:imgUrl, lat: latitude, mapzoom: zoom});
+		socket.on('getImage',function(data){
+			console.log('Send successfully!');
+		});
+	 } 
+	
+	//Receive total surface area from server with socket-io
+	function calculate(){
+		socket.emit('calculate');
+		socket.on('calculate',function(data){
+			console.log('Surface area = ' + data);
+			document.getElementById("displaym2").innerHTML = Number(Math.round(data+'e5')+'e-5') ;
+			document.getElementById("displaykm2").innerHTML = Number(Math.round((data/1000000)+'e5')+'e-5') ;
+		});
+	}
+	
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAVBoSDGSH1oco92WWos46QvzxcwKhvFvI&libraries=drawing&callback=initMap">
+    </script>
+  </body>
+</html>

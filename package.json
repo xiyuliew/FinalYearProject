@@ -1,0 +1,24 @@
+{
+  "name": "fit3036",
+  "version": "1.0.0",
+  "description": "Final Year Project - Road Surface Estimation",
+  "main": "app.js",
+  "scripts": {
+    "test": "mocha || true"
+  },
+  "author": "XI YU LIEW",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/xylie2/FIT3036.git"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^4.1.2",
+    "express": "^4.16.3",
+    "gm": "^1.23.1",
+    "mocha": "^5.2.0",
+    "pngjs2": "^2.0.0",
+    "socket.io": "^2.1.1",
+    "superagent": "^3.8.3"
+  }
+}
